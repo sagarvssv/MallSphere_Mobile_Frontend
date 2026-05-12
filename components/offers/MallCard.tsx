@@ -1,15 +1,15 @@
 // components/offers/MallCard.tsx
+import { useRouter } from 'expo-router';
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
   Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Mall } from '../../types';
 import { Colors } from '../../constants/colors';
+import { Mall } from '../../types';
 
 interface MallCardProps {
   mall: Mall;

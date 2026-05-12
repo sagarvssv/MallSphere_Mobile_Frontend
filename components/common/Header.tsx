@@ -1,15 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Platform,
-  ActivityIndicator,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/colors';
 
 interface HeaderProps {
@@ -28,6 +29,7 @@ const Header: React.FC<HeaderProps> = ({
   onLocationPress,
 }) => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [location, setLocation] = useState<string | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -136,7 +138,10 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[
+      styles.container,
+      { paddingTop: insets.top > 0 ? insets.top : (Platform.OS === 'ios' ? 50 : 12) }
+    ]}>
       <View style={styles.leftContainer}>
         {showBack && (
           <TouchableOpacity
@@ -170,12 +175,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingBottom: 12,
     backgroundColor: Colors.white,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
-    paddingTop: Platform.OS === 'ios' ? 50 : 12,
-    height: Platform.OS === 'ios' ? 90 : 60,
   },
   leftContainer: {
     flex: 1,

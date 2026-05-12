@@ -1,7 +1,7 @@
 // hooks/useWishlist.ts
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
-import { wishlistService, WishlistItem, ToggleWishlistResponse } from '../services/wishlistService';
+import { ToggleWishlistResponse, WishlistItem, wishlistService } from '../services/wishlistService';
 
 interface WishlistState {
   items: WishlistItem[];
@@ -29,7 +29,18 @@ export const useWishlist = () => {
   const setError = (error: string | null) =>
     setState(prev => ({ ...prev, error }));
 
-  // Fetch Wishlist
+  // Filter out invalid items (where offerId is null)
+  const filterValidItems = (items: WishlistItem[]): WishlistItem[] => {
+    return items.filter(item => {
+      const isValid = item?.offerId !== null && item?.offerId !== undefined;
+      if (!isValid) {
+        console.log(`⚠️ Filtering out invalid wishlist item with null offerId`);
+      }
+      return isValid;
+    });
+  };
+
+  // Fetch Wishlist - FIXED with null safety
   const fetchWishlist = useCallback(async (showLoading = true) => {
     try {
       if (showLoading) {
@@ -38,21 +49,26 @@ export const useWishlist = () => {
       setError(null);
 
       const response = await wishlistService.getWishlist();
+      
+      // Filter out invalid items
+      const validItems = filterValidItems(response.data || []);
+      const validCount = validItems.length;
 
       setState(prev => ({
         ...prev,
-        items: response.data || [],
-        count: response.count || 0,
+        items: validItems,
+        count: validCount,
         error: null,
       }));
 
-      return response;
+      console.log(`✅ Wishlist fetched: ${validCount} valid items (filtered out ${(response.data?.length || 0) - validCount} invalid)`);
+
+      return { ...response, data: validItems, count: validCount };
     } catch (err: any) {
       const message = err.message || 'Failed to fetch wishlist';
       setError(message);
       console.error('Wishlist fetch error:', message);
       
-      // Don't throw on initial load, just show empty state
       setState(prev => ({
         ...prev,
         items: [],
@@ -74,55 +90,46 @@ export const useWishlist = () => {
       return null;
     }
 
-    // Store current state for rollback
     const previousItems = [...state.items];
     const previousCount = state.count;
-    const isCurrentlyInWishlist = state.items.some(item => item.offerId?._id === offerId);
+    const isCurrentlyInWishlist = state.items.some(item => item?.offerId?._id === offerId);
     
     try {
       setError(null);
       
-      // Optimistic update
       if (isCurrentlyInWishlist) {
         console.log('🔄 Optimistically removing from wishlist');
-        // Remove optimistically
         setState(prev => ({
           ...prev,
-          items: prev.items.filter(item => item.offerId?._id !== offerId),
+          items: prev.items.filter(item => item?.offerId?._id !== offerId),
           count: Math.max(0, prev.count - 1),
         }));
       } else {
         console.log('🔄 Optimistically adding to wishlist');
-        // Don't update items optimistically for add since we need the full populated data
         setState(prev => ({ ...prev, isLoading: true }));
       }
 
-      // Make API call
       const response = await wishlistService.toggleWishlist(offerId);
 
       if (response.action === 'removed') {
         console.log('✅ Item removed from wishlist');
-        // Already removed optimistically, ensure state is consistent
         setState(prev => ({
           ...prev,
-          items: prev.items.filter(item => item.offerId?._id !== offerId),
+          items: prev.items.filter(item => item?.offerId?._id !== offerId),
           count: Math.max(0, prev.count - 1),
           isLoading: false,
         }));
       } else if (response.action === 'added') {
         console.log('✅ Item added to wishlist, refetching to get full data');
-        // Refetch to get the complete wishlist with populated offer data
         await fetchWishlist(false);
       }
 
       return response;
     } catch (err: any) {
-      // Rollback optimistic update on error
       console.error('❌ Toggle wishlist error:', err);
       const message = err.message || 'Failed to update wishlist';
       setError(message);
       
-      // Restore previous state
       setState(prev => ({
         ...prev,
         items: previousItems,
@@ -135,10 +142,11 @@ export const useWishlist = () => {
     }
   }, [state.items, fetchWishlist]);
 
-  // Check if item is in wishlist
+  // Check if item is in wishlist - FIXED with null safety
   const isInWishlist = useCallback(
     (offerId: string): boolean => {
-      return state.items.some(item => item.offerId?._id === offerId);
+      if (!offerId) return false;
+      return state.items.some(item => item?.offerId?._id === offerId);
     },
     [state.items]
   );
@@ -148,7 +156,7 @@ export const useWishlist = () => {
     return state.count;
   }, [state.count]);
 
-  // Refresh wishlist (for pull-to-refresh)
+  // Refresh wishlist
   const refreshWishlist = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -170,14 +178,11 @@ export const useWishlist = () => {
   }, []);
 
   return {
-    // State
     items: state.items,
     count: state.count,
     isLoading: state.isLoading,
     isRefreshing: state.isRefreshing,
     error: state.error,
-
-    // Actions
     fetchWishlist,
     toggleWishlist,
     isInWishlist,

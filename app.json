@@ -50,6 +50,12 @@
         {
           "iosUrlScheme": "com.googleusercontent.apps.586698620693-ka353evsc9skknrr0squ41eh5jnh3a9a"
         }
+      ],
+      [
+       "expo-adi-registration",
+        {
+          "token": "CUPKFOXXKEKBKAAAAAAAAAAAAA"
+        }
       ]
     ],
     "experiments": {

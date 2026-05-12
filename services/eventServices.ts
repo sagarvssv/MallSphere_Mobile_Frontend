@@ -2,7 +2,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Use the EXACT same base URL as your auth service
-const API_BASE_URL = 'https://mallsperebackend-psbx.onrender.com/api/auth';
+const API_BASE_URL = 'https://mallsperebackend-uh9h.onrender.com/api/auth';
 
 export interface Event {
   _id: string;

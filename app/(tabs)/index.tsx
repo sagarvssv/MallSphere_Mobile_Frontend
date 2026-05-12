@@ -1,25 +1,24 @@
-// app/(tabs)/index.tsx (HomeScreen)
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  RefreshControl,
-  Modal,
-  FlatList,
-} from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useAuth } from '../../hooks/useAuth';
-import { useOffers } from '../../hooks/useOffers';
-import { useWishlist } from '../../hooks/useWishlist';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  FlatList,
+  Modal,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import MallCard from '../../components/offers/MallCard';
 import OfferCard from '../../components/offers/OfferCard';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { Colors } from '../../constants/colors';
+import { useAuth } from '../../hooks/useAuth';
+import { useOffers } from '../../hooks/useOffers';
+import { useWishlist } from '../../hooks/useWishlist';
 
 const LOCATIONS = ['Dubai', 'Abu Dhabi', 'Hyderabad', 'Bangalore'];
 
@@ -97,14 +96,14 @@ export default function HomeScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaProvider style={styles.container}>
         <LoadingSpinner fullScreen />
-      </SafeAreaView>
+      </SafeAreaProvider>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaProvider style={styles.container}>
       <ScrollView
         refreshControl={
           <RefreshControl
@@ -189,7 +188,6 @@ export default function HomeScreen() {
               <OfferCard
                 key={offer.id}
                 offer={offer}
-                onPress={() => router.push(`/offer-details/${offer.id}`)}
                 onToggleWishlist={() => handleToggleWishlist(offer.id)}
               />
             ))}
@@ -254,7 +252,7 @@ export default function HomeScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
-    </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
@@ -265,6 +263,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     paddingHorizontal: 16,
+    paddingTop: 36,
+    paddingBottom: 10,
     paddingVertical: 20,
   },
   greeting: { fontSize: 24, fontWeight: 'bold', color: Colors.text, marginBottom: 8 },

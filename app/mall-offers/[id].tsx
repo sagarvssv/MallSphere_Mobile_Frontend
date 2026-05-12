@@ -1,21 +1,21 @@
 // app/mall-offers/[id].tsx
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  Image,
   ActivityIndicator,
   Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/colors';
-import { Offer, Mall } from '../../types';
 import { useWishlist } from '../../hooks/useWishlist';
+import { Mall, Offer } from '../../types';
 
 const API_BASE_URL = 'https://mallsperebackend-psbx.onrender.com/api/auth';
 
@@ -306,26 +306,23 @@ export default function MallOffersScreen() {
             {offer.validUntil ? new Date(offer.validUntil).toLocaleDateString() : 'N/A'}
           </Text>
         </View>
-        <TouchableOpacity style={styles.cartButton}>
-          <Text style={styles.cartButtonText}>Add to Cart</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaProvider style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
           <Text style={styles.loadingText}>Loading offers...</Text>
         </View>
-      </SafeAreaView>
+      </SafeAreaProvider>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaProvider style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backIcon}>←</Text>
@@ -398,7 +395,7 @@ export default function MallOffersScreen() {
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 

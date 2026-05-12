@@ -1,12 +1,21 @@
 // app/_layout.tsx
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Colors } from '../constants/colors';
+import { configureGoogleSignIn } from '../hooks/useGoogleAuth';
 import TokenRefreshHandler from './(auth)/TokenRefreshHandler';
 
 export default function RootLayout() {
+  useEffect(() => {
+    // Initialize Google Sign-In once when app starts
+    configureGoogleSignIn();
+    console.log('✅ Google Sign-In configured');
+  }, []);
+
   return (
-    <>
+    <SafeAreaProvider>
       <StatusBar style="dark" />
       <TokenRefreshHandler />
       <Stack
@@ -25,6 +34,6 @@ export default function RootLayout() {
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
-    </>
+    </SafeAreaProvider>
   );
 }

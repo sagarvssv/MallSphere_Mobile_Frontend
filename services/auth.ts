@@ -1,5 +1,7 @@
-// services/authService.ts
-import { API_ENDPOINTS, API_BASE_URL } from '../constants/api';
+// services/auth.ts
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL, API_ENDPOINTS } from '../constants/api';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
 // ─── Response Types ───────────────────────────────────────────────────────────
 
@@ -9,15 +11,15 @@ export interface AuthUser {
   email: string;
   profilePicture?: string;
   role?: string;
-  token?: string;
-  location?: string; // Add location to user
+  location?: string;
+  accessToken: string;
 }
 
 export interface RegisterData {
   username: string;
   email: string;
   password: string;
-  location: string; // Make location required
+  location: string;
   profilePicture?: {
     uri: string;
     type?: string;
@@ -25,14 +27,27 @@ export interface RegisterData {
   } | null;
 }
 
+// ─── Token helpers ────────────────────────────────────────────────────────────
+
+// ✅ FIXED: tokens are stored separately, not inside the user object
+export const getStoredToken = async (): Promise<string | null> => {
+  return AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+};
+
+export const getAuthHeaders = async (): Promise<HeadersInit> => {
+  const token = await getStoredToken();
+  console.log('🔑 Auth token present:', !!token);
+  return {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    ...(token && { Authorization: `Bearer ${token}` }),
+  };
+};
+
 // ─── Safe JSON parser ─────────────────────────────────────────────────────────
-// Render free tier returns HTML when the server is waking up (cold start),
-// or when the route doesn't exist. res.json() blows up on "<" in that case.
 
 const safeJson = async (res: Response) => {
   const text = await res.text();
-
-  // HTML response — server is down, cold-starting, or wrong URL
   if (text.trimStart().startsWith('<')) {
     if (res.status === 502 || res.status === 503 || res.status === 504) {
       throw new Error('Server is starting up, please try again in a few seconds.');
@@ -42,15 +57,12 @@ const safeJson = async (res: Response) => {
     }
     throw new Error(`Unexpected server response (status ${res.status}). The server may be unavailable.`);
   }
-
   try {
     return JSON.parse(text);
   } catch {
     throw new Error(`Invalid response from server: ${text.slice(0, 100)}`);
   }
 };
-
-// ─── Helper ───────────────────────────────────────────────────────────────────
 
 const handleResponse = async (res: Response) => {
   const data = await safeJson(res);
@@ -61,28 +73,20 @@ const handleResponse = async (res: Response) => {
 };
 
 // ─── Render cold-start ping ───────────────────────────────────────────────────
-// Render free-tier instances sleep after inactivity. The first request after
-// sleep can take 30–60s and returns 502/503 while waking. This utility pings
-// the server and retries until it's awake (up to ~45s total).
 
 export const waitForServer = async (
   timeoutMs = 45_000,
   intervalMs = 3_000
 ): Promise<void> => {
-  const pingUrl = `${API_BASE_URL}/api/auth/refresh-token`; // lightweight GET
+  const pingUrl = `${API_BASE_URL}/auth/refresh-token`;
   const deadline = Date.now() + timeoutMs;
-
   while (Date.now() < deadline) {
     try {
       const res = await fetch(pingUrl, { method: 'GET', credentials: 'include' });
-      // Any non-5xx response means the server is awake (even 401 is fine)
       if (res.status < 500) return;
-    } catch {
-      // Network error — keep retrying
-    }
+    } catch {}
     await new Promise(r => setTimeout(r, intervalMs));
   }
-
   throw new Error('Server did not respond in time. Please try again later.');
 };
 
@@ -90,20 +94,9 @@ export const waitForServer = async (
 
 export const authService = {
 
-  /**
-   * POST /register
-   * Supports optional profile picture via multipart/form-data.
-   * Now includes location field (required by backend)
-   */
   register: async (userData: RegisterData) => {
-    console.log('🔵 authService.register called with:', {
-      username: userData.username,
-      email: userData.email,
-      location: userData.location,
-      hasProfilePicture: !!userData.profilePicture?.uri
-    });
+    console.log('🔵 authService.register called');
 
-    // Validate location is present
     if (!userData.location || userData.location.trim() === '') {
       throw new Error('Location is required');
     }
@@ -113,16 +106,12 @@ export const authService = {
       formData.append('username', userData.username);
       formData.append('email', userData.email);
       formData.append('password', userData.password);
-      formData.append('location', userData.location); // CRITICAL: Add location to FormData
-      
+      formData.append('location', userData.location);
       formData.append('profilePicture', {
         uri: userData.profilePicture.uri,
         type: userData.profilePicture.type ?? 'image/jpeg',
         name: userData.profilePicture.name ?? 'profile.jpg',
       } as any);
-
-      console.log('📤 Sending registration with FormData (includes location)');
-      
       const res = await fetch(API_ENDPOINTS.REGISTER, {
         method: 'POST',
         body: formData,
@@ -130,30 +119,19 @@ export const authService = {
       return handleResponse(res);
     }
 
-    // Without profile picture
-    const requestBody = {
-      username: userData.username,
-      email: userData.email,
-      password: userData.password,
-      location: userData.location, // CRITICAL: Include location in JSON
-    };
-    
-    console.log('📤 Sending registration as JSON:', {
-      ...requestBody,
-      password: '***'
-    });
-    
     const res = await fetch(API_ENDPOINTS.REGISTER, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({
+        username: userData.username,
+        email: userData.email,
+        password: userData.password,
+        location: userData.location,
+      }),
     });
     return handleResponse(res);
   },
 
-  /**
-   * POST /verify-user-otp
-   */
   verifyOtp: async (email: string, otp: string) => {
     const res = await fetch(API_ENDPOINTS.VERIFY_OTP, {
       method: 'POST',
@@ -164,9 +142,6 @@ export const authService = {
     return handleResponse(res);
   },
 
-  /**
-   * POST /login
-   */
   login: async (email: string, password: string) => {
     const res = await fetch(API_ENDPOINTS.LOGIN, {
       method: 'POST',
@@ -177,31 +152,47 @@ export const authService = {
     return handleResponse(res);
   },
 
-  /**
-   * POST /user-logout
-   */
   logout: async () => {
+    const headers = await getAuthHeaders();
     const res = await fetch(API_ENDPOINTS.LOGOUT, {
       method: 'POST',
+      headers,
       credentials: 'include',
     });
     return handleResponse(res);
   },
 
-  /**
-   * GET /refresh-token
-   */
+  // ✅ FIXED: send refresh token as a cookie (backend reads req.cookies.refreshToken)
   refreshToken: async () => {
+    const refreshTokenValue = await AsyncStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+    if (!refreshTokenValue) {
+      throw new Error('No refresh token available');
+    }
+
     const res = await fetch(API_ENDPOINTS.REFRESH_TOKEN, {
       method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: `refreshToken=${refreshTokenValue}`,  // ✅ mimics browser cookie
+      },
       credentials: 'include',
     });
-    return handleResponse(res);
+
+    const data = await handleResponse(res);
+
+    // ✅ Update stored tokens if the server sends new ones in the response body
+    if (data.accessToken) {
+      await AsyncStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, data.accessToken);
+      console.log('✅ Access token refreshed and stored');
+    }
+    if (data.refreshToken) {
+      await AsyncStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, data.refreshToken);
+      console.log('✅ Refresh token renewed and stored');
+    }
+
+    return data;
   },
 
-  /**
-   * POST /resend-otp
-   */
   resendOtp: async (email: string) => {
     const res = await fetch(API_ENDPOINTS.RESEND_OTP, {
       method: 'POST',
@@ -211,9 +202,6 @@ export const authService = {
     return handleResponse(res);
   },
 
-  /**
-   * POST /user-forgot-password
-   */
   forgotPassword: async (email: string) => {
     const res = await fetch(API_ENDPOINTS.FORGOT_PASSWORD, {
       method: 'POST',
@@ -223,9 +211,6 @@ export const authService = {
     return handleResponse(res);
   },
 
-  /**
-   * POST /user-reset-password
-   */
   resetPassword: async (
     email: string,
     otp: string,
@@ -240,26 +225,21 @@ export const authService = {
     return handleResponse(res);
   },
 
-  /**
-   * POST /user-change-password
-   */
   changePassword: async (
     oldPassword: string,
     newPassword: string,
     confirmPassword: string
   ) => {
+    const headers = await getAuthHeaders();
     const res = await fetch(API_ENDPOINTS.CHANGE_PASSWORD, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       credentials: 'include',
       body: JSON.stringify({ oldPassword, newPassword, confirmPassword }),
     });
     return handleResponse(res);
   },
 
-  /**
-   * POST /google-login
-   */
   googleLogin: async (idToken: string) => {
     const res = await fetch(API_ENDPOINTS.GOOGLE_LOGIN, {
       method: 'POST',

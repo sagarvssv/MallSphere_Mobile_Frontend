@@ -1,22 +1,22 @@
 // app/(tabs)/offers.tsx (Updated with navigation)
+import { MaterialIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
   RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { MaterialIcons } from '@expo/vector-icons';
-import { useOffers } from '../../hooks/useOffers';
-import OfferCard from '../../components/offers/OfferCard';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import FilterModal from '../../components/offers/FilterModal';
+import OfferCard from '../../components/offers/OfferCard';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { Colors } from '../../constants/colors';
+import { useOffers } from '../../hooks/useOffers';
 
 export default function OffersScreen() {
   const router = useRouter();
@@ -54,16 +54,16 @@ export default function OffersScreen() {
   // Show loading state
   if (isLoading && offers.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaProvider style={styles.container}>
         <LoadingSpinner fullScreen />
-      </SafeAreaView>
+      </SafeAreaProvider>
     );
   }
 
   // Show error state
   if (error && offers.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaProvider style={styles.container}>
         <View style={styles.errorState}>
           <MaterialIcons name="error-outline" size={64} color="#FF3B30" />
           <Text style={styles.errorTitle}>Unable to load offers</Text>
@@ -72,12 +72,12 @@ export default function OffersScreen() {
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </SafeAreaProvider>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaProvider style={styles.container}>
       <View style={styles.header}>
         <View style={styles.searchContainer}>
           <MaterialIcons name="search" size={20} color={Colors.textSecondary} />
@@ -157,7 +157,7 @@ export default function OffersScreen() {
         filters={filters}
         onApplyFilters={updateFilters}
       />
-    </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 

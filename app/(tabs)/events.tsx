@@ -1,22 +1,22 @@
 // app/(tabs)/events.tsx
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  FlatList,
-  RefreshControl,
-  TouchableOpacity,
-  TextInput,
-  Modal,
-  ActivityIndicator,
-} from 'react-native';
 import { useRouter } from 'expo-router';
-import { useEvents } from '../../hooks/useEvents';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import EventCard from '../../components/events/EventsCard';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { Colors } from '../../constants/colors';
+import { useEvents } from '../../hooks/useEvents';
 
 const LOCATIONS = ['Dubai', 'Abu Dhabi', 'Hyderabad', 'Bangalore', 'All'];
 
@@ -92,14 +92,14 @@ export default function EventsScreen() {
 
   if (isLoading && events.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaProvider style={styles.container}>
         <LoadingSpinner fullScreen />
-      </SafeAreaView>
+      </SafeAreaProvider>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaProvider style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Events</Text>
@@ -215,7 +215,7 @@ export default function EventsScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
-    </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 

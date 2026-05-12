@@ -1,14 +1,14 @@
 // app/(auth)/register.tsx
-import React from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useAuth } from '../../hooks/useAuth';
+import React from 'react';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import RegisterForm from '../../components/auth/RegisterForm';
 import { Colors } from '../../constants/colors';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const { register, isLoading } = useAuth();
+  const { register, googleLogin, isLoading } = useAuth();
 
   const handleRegister = async (userData: any) => {
     try {
@@ -42,11 +42,31 @@ export default function RegisterScreen() {
       
     } catch (err: any) {
       console.log('Registration error in screen:', err.message);
+      Alert.alert('Registration Failed', err.message || 'Could not create account');
     }
   };
 
-  const handleGoogleSignUp = async () => {
-    console.log('Google sign-up clicked');
+  const handleGoogleSignUp = async (userInfo: { idToken: string; email: string; name: string; picture: string }) => {
+    try {
+      console.log('Google sign-up with user:', userInfo.email);
+      
+      // Call googleLogin with the complete user info
+      const response = await googleLogin({
+        idToken: userInfo.idToken,
+        email: userInfo.email,
+        name: userInfo.name,
+        picture: userInfo.picture
+      });
+      
+      if (response) {
+        // Navigate to home screen on successful login/signup
+        router.replace('/(tabs)');
+      }
+      
+    } catch (err: any) {
+      console.log('Google sign-up error:', err.message);
+      // Error is already handled in googleLogin with Alert
+    }
   };
 
   return (

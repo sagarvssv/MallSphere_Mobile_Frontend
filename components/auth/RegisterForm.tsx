@@ -1,74 +1,35 @@
-// components/auth/RegisterForm.tsx
-import React, { useState, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  Alert,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  TouchableWithoutFeedback,
-  Keyboard,
-  ScrollView,
-  Modal,
-  FlatList,
-} from 'react-native';
+import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { MaterialIcons, Ionicons, FontAwesome5, Feather } from '@expo/vector-icons';
+import React, { useRef, useState } from 'react';
+import {
+  Alert,
+  FlatList,
+  Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
+} from 'react-native';
+import { useGoogleAuth } from '../../hooks/useGoogleAuth';
+import { validateEmail, validatePassword, validateUsername } from '../../utils/validators';
 import Input from '../ui/Input';
-import { validateEmail, validateUsername, validatePassword } from '../../utils/validators';
+
+// Only these 4 locations
+const LOCATIONS = ['Dubai', 'Abu Dhabi', 'Hyderabad', 'Bangalore'];
 
 interface RegisterFormProps {
   onSubmit: (data: any) => Promise<void>;
   loading: boolean;
   onLogin: () => void;
-  onGoogleSignUp: () => void;
+  onGoogleSignUp: (userInfo: { idToken: string; email: string; name: string; picture: string }) => Promise<void>;
 }
-
-// City data for Dubai and Abu Dhabi
-const DUBAI_CITIES = [
-  'India',
-  'Dubai',
-  'Downtown Dubai',
-  'Dubai Marina',
-  'Jumeirah',
-  'Palm Jumeirah',
-  'Business Bay',
-  'Deira',
-  'Bur Dubai',
-  'Al Barsha',
-  'Jumeirah Lake Towers (JLT)',
-  'Dubai Silicon Oasis',
-  'Arabian Ranches',
-  'Emirates Hills',
-  'Dubai Hills Estate',
-  'Mirdif',
-  'Al Qusais',
-];
-
-const ABU_DHABI_CITIES = [
-  'Abu Dhabi',
-  'Downtown Abu Dhabi',
-  'Al Reem Island',
-  'Yas Island',
-  'Saadiyat Island',
-  'Al Maryah Island',
-  'Khalifa City',
-  'Mohamed Bin Zayed City',
-  'Al Raha Beach',
-  'Al Shamkha',
-  'Masdar City',
-  'Al Ain',
-  'Al Ghadeer',
-  'Al Shahama',
-  'Baniyas',
-  'Musaffah',
-];
-
-const ALL_CITIES = [...DUBAI_CITIES, ...ABU_DHABI_CITIES].sort();
 
 const RegisterForm: React.FC<RegisterFormProps> = ({
   onSubmit,
@@ -87,20 +48,31 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
   
   // Location states
   const [location, setLocation] = useState('');
-  const [selectedCity, setSelectedCity] = useState('');
-  const [customCity, setCustomCity] = useState('');
-  const [showCityDropdown, setShowCityDropdown] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isCustomCitySelected, setIsCustomCitySelected] = useState(false);
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
   const confirmPasswordRef = useRef<TextInput>(null);
 
-  // Filter cities based on search query
-  const filteredCities = ALL_CITIES.filter(city =>
-    city.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Initialize Google Sign-In
+  const { promptAsync, isReady: isGoogleReady } = useGoogleAuth(async (userInfo) => {
+    setIsGoogleLoading(true);
+    try {
+      // Pass complete user info to parent
+      await onGoogleSignUp({
+        idToken: userInfo.id_token,
+        email: userInfo.email,
+        name: userInfo.name,
+        picture: userInfo.picture
+      });
+    } catch (error) {
+      console.error('Google sign up error:', error);
+      // Error is already handled in parent
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  });
 
   const pickImage = async () => {
     Alert.alert('Profile Picture', 'Choose an option', [
@@ -108,8 +80,15 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
         text: 'Take Photo',
         onPress: async () => {
           const { status } = await ImagePicker.requestCameraPermissionsAsync();
-          if (status !== 'granted') { Alert.alert('Permission Required', 'Camera permission is needed'); return; }
-          const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+          if (status !== 'granted') { 
+            Alert.alert('Permission Required', 'Camera permission is needed'); 
+            return; 
+          }
+          const result = await ImagePicker.launchCameraAsync({ 
+            allowsEditing: true, 
+            aspect: [1, 1], 
+            quality: 0.8 
+          });
           if (!result.canceled) setProfilePicture(result.assets[0]);
         },
       },
@@ -117,8 +96,16 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
         text: 'Choose from Gallery',
         onPress: async () => {
           const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-          if (status !== 'granted') { Alert.alert('Permission Required', 'Gallery permission is needed'); return; }
-          const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+          if (status !== 'granted') { 
+            Alert.alert('Permission Required', 'Gallery permission is needed'); 
+            return; 
+          }
+          const result = await ImagePicker.launchImageLibraryAsync({ 
+            mediaTypes: ImagePicker.MediaTypeOptions.Images, 
+            allowsEditing: true, 
+            aspect: [1, 1], 
+            quality: 0.8 
+          });
           if (!result.canceled) setProfilePicture(result.assets[0]);
         },
       },
@@ -126,43 +113,29 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
     ]);
   };
 
-  const handleCitySelect = (city: string) => {
-    setSelectedCity(city);
-    setLocation(city);
-    setIsCustomCitySelected(false);
-    setCustomCity('');
-    setShowCityDropdown(false);
-    setSearchQuery('');
+  const handleLocationSelect = (selectedLocation: string) => {
+    setLocation(selectedLocation);
+    setShowLocationDropdown(false);
     clearError('location');
-  };
-
-  const handleOtherCity = () => {
-    setIsCustomCitySelected(true);
-    setSelectedCity('');
-    setLocation('');
-    setShowCityDropdown(false);
-    setSearchQuery('');
-  };
-
-  const handleCustomCityChange = (text: string) => {
-    setCustomCity(text);
-    setLocation(text);
-    if (text.trim()) {
-      clearError('location');
-    }
   };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
     if (!username.trim()) newErrors.username = 'Username is required';
-    else { const e = validateUsername(username); if (e) newErrors.username = e; }
+    else { 
+      const e = validateUsername(username); 
+      if (e) newErrors.username = e; 
+    }
     if (!email.trim()) newErrors.email = 'Email is required';
     else if (!validateEmail(email)) newErrors.email = 'Please enter a valid email address';
     if (!password) newErrors.password = 'Password is required';
-    else { const e = validatePassword(password); if (e) newErrors.password = e; }
+    else { 
+      const e = validatePassword(password); 
+      if (e) newErrors.password = e; 
+    }
     if (!confirmPassword) newErrors.confirmPassword = 'Please confirm your password';
     else if (password !== confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
-    if (!location.trim()) newErrors.location = 'Please select or enter your city';
+    if (!location.trim()) newErrors.location = 'Please select your city';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -179,9 +152,23 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
     });
   };
 
+  const handleGooglePress = async () => {
+    if (!isGoogleReady) {
+      Alert.alert('Not Ready', 'Google Sign-In is initializing. Please try again.');
+      return;
+    }
+    
+    if (isGoogleLoading || loading) return;
+    
+    const result = await promptAsync();
+    if (result.type === 'error') {
+      Alert.alert('Error', result.error || 'Google Sign-In failed. Please try again.');
+    }
+  };
+
   const clearError = (field: string) => setErrors(prev => ({ ...prev, [field]: '' }));
 
-  // Reusable field builder
+  // Reusable field renderer
   const renderField = ({
     label,
     placeholder,
@@ -254,7 +241,6 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
                     <MaterialIcons name="add-a-photo" size={26} color="#AEAEB2" />
                   </View>
                 )}
-                {/* Camera badge */}
                 <View style={styles.cameraBadge}>
                   <MaterialIcons name="photo-camera" size={13} color="#FFFFFF" />
                 </View>
@@ -338,19 +324,19 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
                 onToggleShow: () => setShowConfirmPassword(!showConfirmPassword),
               })}
 
-              {/* Location Field */}
+              {/* Location Field - Simple dropdown with 4 options */}
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>Location</Text>
                 <TouchableOpacity
                   style={[styles.locationButton, errors.location ? styles.inputWrapperError : null]}
-                  onPress={() => setShowCityDropdown(true)}
+                  onPress={() => setShowLocationDropdown(true)}
                   activeOpacity={0.7}
                 >
                   <View style={styles.inputIcon}>
                     <Ionicons name="location-outline" size={18} color="#AEAEB2" />
                   </View>
                   <Text style={[styles.locationText, !location && styles.locationPlaceholder]}>
-                    {location || 'Select or enter your city'}
+                    {location || 'Select your city'}
                   </Text>
                   <MaterialIcons name="arrow-drop-down" size={24} color="#AEAEB2" />
                 </TouchableOpacity>
@@ -362,25 +348,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
                 ) : null}
               </View>
 
-              {/* Custom city input (shown when "Other" is selected) */}
-              {isCustomCitySelected && (
-                <View style={styles.customCityContainer}>
-                  <View style={[styles.inputWrapper, errors.location ? styles.inputWrapperError : null]}>
-                    <View style={styles.inputIcon}>
-                      <Ionicons name="create-outline" size={18} color="#AEAEB2" />
-                    </View>
-                    <Input
-                      placeholder="Enter your city name"
-                      value={customCity}
-                      onChangeText={handleCustomCityChange}
-                      style={styles.input}
-                      autoCapitalize="words"
-                    />
-                  </View>
-                </View>
-              )}
-
-              {/* Submit */}
+              {/* Submit Button */}
               <TouchableOpacity
                 style={[styles.submitButton, loading && styles.submitButtonDisabled]}
                 onPress={handleSubmit}
@@ -404,15 +372,17 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
                 <View style={styles.dividerLine} />
               </View>
 
-              {/* Google */}
+              {/* Google Sign Up Button */}
               <TouchableOpacity
-                style={[styles.googleButton, loading && styles.googleButtonDisabled]}
-                onPress={onGoogleSignUp}
-                disabled={loading}
+                style={[styles.googleButton, (loading || isGoogleLoading) && styles.googleButtonDisabled]}
+                onPress={handleGooglePress}
+                disabled={loading || isGoogleLoading}
                 activeOpacity={0.88}
               >
-                <Text style={styles.googleIcon}>G</Text>
-                <Text style={styles.googleButtonText}>Sign up with Google</Text>
+                <Ionicons name="logo-google" size={20} color="#4285F4" />
+                <Text style={styles.googleButtonText}>
+                  {isGoogleLoading ? 'Signing up...' : 'Sign up with Google'}
+                </Text>
               </TouchableOpacity>
 
               {/* Footer */}
@@ -427,75 +397,42 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
         </TouchableWithoutFeedback>
       </ScrollView>
 
-      {/* City Selection Modal */}
+      {/* Location Selection Modal - Only 4 options */}
       <Modal
-        visible={showCityDropdown}
+        visible={showLocationDropdown}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setShowCityDropdown(false)}
+        onRequestClose={() => setShowLocationDropdown(false)}
       >
         <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
-          onPress={() => setShowCityDropdown(false)}
+          onPress={() => setShowLocationDropdown(false)}
         >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Your City</Text>
-              <TouchableOpacity onPress={() => setShowCityDropdown(false)}>
+              <TouchableOpacity onPress={() => setShowLocationDropdown(false)}>
                 <MaterialIcons name="close" size={24} color="#1C1C1E" />
               </TouchableOpacity>
             </View>
 
-            {/* Search Input */}
-            <View style={styles.searchContainer}>
-              <View style={styles.searchWrapper}>
-                <MaterialIcons name="search" size={20} color="#AEAEB2" />
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="Search cities..."
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  placeholderTextColor="#AEAEB2"
-                />
-                {searchQuery !== '' && (
-                  <TouchableOpacity onPress={() => setSearchQuery('')}>
-                    <MaterialIcons name="cancel" size={18} color="#AEAEB2" />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-
             <FlatList
-              data={filteredCities}
+              data={LOCATIONS}
               keyExtractor={(item) => item}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.cityItem}
-                  onPress={() => handleCitySelect(item)}
+                  onPress={() => handleLocationSelect(item)}
                 >
                   <Ionicons name="location-outline" size={20} color="#1C1C1E" />
                   <Text style={styles.cityName}>{item}</Text>
-                  {selectedCity === item && (
+                  {location === item && (
                     <MaterialIcons name="check" size={20} color="#27AE60" style={styles.checkIcon} />
                   )}
                 </TouchableOpacity>
               )}
-              ListEmptyComponent={() => (
-                <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyText}>No cities found</Text>
-                </View>
-              )}
             />
-
-            {/* Other Option */}
-            <TouchableOpacity
-              style={styles.otherOption}
-              onPress={handleOtherCity}
-            >
-              <MaterialIcons name="add-location" size={20} color="#1C1C1E" />
-              <Text style={styles.otherOptionText}>Other (Enter custom city)</Text>
-            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -508,7 +445,7 @@ const styles = StyleSheet.create({
   scrollContent: { flexGrow: 1, paddingBottom: 48 },
   inner: { flex: 1, gap: 20 },
 
-  // ─── Avatar ───────────────────────────────────────────────────────────────────
+  // Avatar styles
   avatarArea: { alignItems: 'center', paddingVertical: 8 },
   avatarRing: {
     width: 96,
@@ -551,10 +488,8 @@ const styles = StyleSheet.create({
   avatarLabel: { fontSize: 14, fontWeight: '600', color: '#1C1C1E' },
   avatarSublabel: { fontSize: 11, color: '#AEAEB2', marginTop: 2 },
 
-  // ─── Form ─────────────────────────────────────────────────────────────────────
+  // Form styles
   form: { gap: 14 },
-
-  // ─── Fields ───────────────────────────────────────────────────────────────────
   fieldGroup: { gap: 7 },
   fieldLabel: { fontSize: 13, fontWeight: '600', color: '#1C1C1E', letterSpacing: 0.1 },
   inputWrapper: {
@@ -581,7 +516,7 @@ const styles = StyleSheet.create({
   fieldError: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: -2 },
   fieldErrorText: { fontSize: 11, color: '#C0392B', fontWeight: '500' },
 
-  // ─── Password strength ────────────────────────────────────────────────────────
+  // Password strength
   strengthRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -597,7 +532,7 @@ const styles = StyleSheet.create({
   },
   strengthLabel: { fontSize: 11, color: '#8A8A8E', fontWeight: '500', marginLeft: 4 },
 
-  // ─── Location Field ───────────────────────────────────────────────────────────
+  // Location field
   locationButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -616,11 +551,8 @@ const styles = StyleSheet.create({
   locationPlaceholder: {
     color: '#AEAEB2',
   },
-  customCityContainer: {
-    marginTop: -4,
-  },
 
-  // ─── Submit ───────────────────────────────────────────────────────────────────
+  // Submit button
   submitButton: {
     backgroundColor: '#1C1C1E',
     borderRadius: 14,
@@ -643,12 +575,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // ─── Divider ──────────────────────────────────────────────────────────────────
+  // Divider
   divider: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   dividerLine: { flex: 1, height: 1, backgroundColor: '#F0F0F0' },
   dividerText: { fontSize: 12, color: '#AEAEB2' },
 
-  // ─── Google ───────────────────────────────────────────────────────────────────
+  // Google button
   googleButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -658,13 +590,12 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
     borderRadius: 14,
     paddingVertical: 15,
-    gap: 10,
+    gap: 12,
   },
   googleButtonDisabled: { opacity: 0.5 },
-  googleIcon: { fontSize: 16, fontWeight: '700', color: '#4285F4' },
   googleButtonText: { fontSize: 15, color: '#1C1C1E', fontWeight: '500' },
 
-  // ─── Footer ───────────────────────────────────────────────────────────────────
+  // Footer
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -681,7 +612,7 @@ const styles = StyleSheet.create({
     textDecorationColor: '#DCDCDC',
   },
 
-  // ─── Modal Styles ─────────────────────────────────────────────────────────────
+  // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -691,8 +622,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '80%',
-    minHeight: '50%',
+    maxHeight: '50%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -708,66 +638,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1C1C1E',
   },
-  searchContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
-  searchWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8F8F8',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    marginLeft: 8,
-    color: '#1C1C1E',
-    paddingVertical: 4,
-  },
   cityItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#F5F5F5',
   },
   cityName: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 16,
     color: '#1C1C1E',
     marginLeft: 12,
   },
   checkIcon: {
     marginLeft: 8,
-  },
-  emptyContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#AEAEB2',
-  },
-  otherOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    backgroundColor: '#F8F8F8',
-  },
-  otherOptionText: {
-    fontSize: 15,
-    color: '#1C1C1E',
-    marginLeft: 12,
-    fontWeight: '500',
   },
 });
 

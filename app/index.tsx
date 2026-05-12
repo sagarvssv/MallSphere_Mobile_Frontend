@@ -1,40 +1,84 @@
+import { useRouter } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  SafeAreaView,
-  Dimensions,
+  Alert,
   Animated,
+  Dimensions,
   StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Colors } from '../constants/colors';
+import { useAuth } from '../hooks/useAuth';
+import { useGoogleAuth } from '../hooks/useGoogleAuth';
 
 const { width } = Dimensions.get('window');
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  const { googleLogin } = useAuth();
+  const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
 
-  const fadeAnim  = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
   const taglineAnim = useRef(new Animated.Value(0)).current;
-  const buttonAnim  = useRef(new Animated.Value(0)).current;
+  const buttonAnim = useRef(new Animated.Value(0)).current;
+
+  // Initialize Google Sign-In
+  const { promptAsync, isReady: isGoogleReady } = useGoogleAuth(async (userInfo) => {
+    setIsGoogleLoading(true);
+    try {
+      console.log('Google user info received:', userInfo.email);
+      
+      // Call googleLogin with the user info
+      await googleLogin({
+        idToken: userInfo.id_token,
+        email: userInfo.email,
+        name: userInfo.name,
+        picture: userInfo.picture
+      });
+      
+      // Navigate to home screen on success
+      router.replace('/(tabs)');
+      
+    } catch (error: any) {
+      console.error('Google login error:', error);
+      Alert.alert('Login Failed', error.message || 'Could not sign in with Google');
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  });
 
   useEffect(() => {
     Animated.sequence([
       Animated.parallel([
-        Animated.timing(fadeAnim,  { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
         Animated.timing(slideAnim, { toValue: 0, duration: 800, useNativeDriver: true }),
       ]),
       Animated.timing(taglineAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-      Animated.timing(buttonAnim,  { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.timing(buttonAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
     ]).start();
   }, []);
 
+  const handleGoogleLogin = async () => {
+    if (!isGoogleReady) {
+      Alert.alert('Not Ready', 'Google Sign-In is initializing. Please try again.');
+      return;
+    }
+    
+    if (isGoogleLoading) return;
+    
+    const result = await promptAsync();
+    if (result.type === 'error') {
+      Alert.alert('Error', result.error || 'Google Sign-In failed. Please try again.');
+    }
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaProvider style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
 
       {/* Soft bg blobs */}
@@ -46,7 +90,7 @@ export default function WelcomeScreen() {
         <View style={styles.logoMark}>
           <View style={styles.logoInner} />
         </View>
-        <Text style={styles.brandName}>MallOffers</Text>
+        <Text style={styles.brandName}>MallSphere</Text>
         <Animated.Text style={[styles.tagline, { opacity: taglineAnim }]}>
           Premium deals, curated for you.
         </Animated.Text>
@@ -72,17 +116,25 @@ export default function WelcomeScreen() {
         {/* Floating badge */}
         <View style={styles.floatingBadge}>
           <Text style={styles.floatingBadgeStar}>✦</Text>
-          <Text style={styles.floatingBadgeText}>500+ Deals Today</Text>
+          <Text style={styles.floatingBadgeText}>100+ Deals Today</Text>
         </View>
       </Animated.View>
 
       {/* ── Actions ── */}
       <Animated.View style={[styles.actionsArea, { opacity: buttonAnim }]}>
-        <TouchableOpacity style={styles.primaryButton} onPress={() => router.push('/(auth)/login')} activeOpacity={0.88}>
+        <TouchableOpacity 
+          style={styles.primaryButton} 
+          onPress={() => router.push('/(auth)/login')} 
+          activeOpacity={0.88}
+        >
           <Text style={styles.primaryButtonText}>Sign In</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push('/(auth)/register')} activeOpacity={0.88}>
+        <TouchableOpacity 
+          style={styles.secondaryButton} 
+          onPress={() => router.push('/(auth)/register')} 
+          activeOpacity={0.88}
+        >
           <Text style={styles.secondaryButtonText}>Create Account</Text>
         </TouchableOpacity>
 
@@ -92,16 +144,27 @@ export default function WelcomeScreen() {
           <View style={styles.dividerLine} />
         </View>
 
-        <TouchableOpacity style={styles.googleButton} onPress={() => console.log('Google login')} activeOpacity={0.88}>
+        <TouchableOpacity 
+          style={[styles.googleButton, isGoogleLoading && styles.googleButtonDisabled]} 
+          onPress={handleGoogleLogin}
+          disabled={isGoogleLoading}
+          activeOpacity={0.88}
+        >
           <Text style={styles.googleIcon}>G</Text>
-          <Text style={styles.googleButtonText}>Continue with Google</Text>
+          <Text style={styles.googleButtonText}>
+            {isGoogleLoading ? 'Signing in...' : 'Continue with Google'}
+          </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.skipButton} onPress={() => router.push('/(tabs)')} activeOpacity={0.7}>
+        <TouchableOpacity 
+          style={styles.skipButton} 
+          onPress={() => router.push('/(tabs)')} 
+          activeOpacity={0.7}
+        >
           <Text style={styles.skipButtonText}>Explore without signing in</Text>
         </TouchableOpacity>
       </Animated.View>
-    </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
@@ -168,7 +231,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white, paddingVertical: 16, borderRadius: 14,
     borderWidth: 1, borderColor: Colors.border, gap: 10,
   },
-  googleIcon: { fontSize: 16, fontWeight: '700', color: Colors.info },
+  googleButtonDisabled: {
+    opacity: 0.6,
+  },
+  googleIcon: { fontSize: 16, fontWeight: '700', color: '#4285F4' },
   googleButtonText: { color: Colors.text, fontSize: 15, fontWeight: '500' },
   skipButton: { alignItems: 'center', paddingVertical: 10 },
   skipButtonText: {

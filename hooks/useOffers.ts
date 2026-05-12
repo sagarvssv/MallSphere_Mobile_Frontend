@@ -1,8 +1,8 @@
 // hooks/useOffers.ts 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Offer, Mall, FlashDeal } from '../types';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { API_BASE_URL } from '../constants/api';
 import { wishlistService } from '../services/wishlistService';
+import { FlashDeal, Mall, Offer } from '../types';
 
 export const useOffers = () => {
   const [offers, setOffers] = useState<Offer[]>([]);
@@ -69,7 +69,9 @@ export const useOffers = () => {
       const response = await wishlistService.getWishlist();
       
       if (response.success && response.data) {
-        const ids = response.data.map(item => item.offerId._id);
+        const ids = response.data
+          .filter(item => item?.offerId != null && item?.offerId?._id != null)
+          .map(item => item.offerId._id);
         const idSet = new Set(ids);
         setWishlistIds(idSet);
         console.log(`✅ Fetched ${ids.length} wishlist items`);

@@ -1,23 +1,23 @@
 // app/(tabs)/profile.tsx - Stats section removed
 
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useAuth } from '../../hooks/useAuth';
-import Input from '../../components/ui/Input';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
 import { Colors } from '../../constants/colors';
+import { useAuth } from '../../hooks/useAuth';
 
 // ─── Inline profile fetch — no external hook, no import chain risk ────────────
 const USER_PROFILE_URL =
@@ -159,7 +159,7 @@ export default function ProfileScreen() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaProvider style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* Profile Header */}
@@ -281,7 +281,7 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 

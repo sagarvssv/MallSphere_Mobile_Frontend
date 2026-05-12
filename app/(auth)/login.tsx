@@ -1,26 +1,26 @@
+import { MaterialIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  Modal,
-  TouchableOpacity,
   ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { MaterialIcons } from '@expo/vector-icons';
-import { useAuth } from '../../hooks/useAuth';
-import { waitForServer } from '../../services/auth';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import LoginForm from '../../components/auth/LoginForm';
-import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
 import { Colors } from '../../constants/colors';
-import { useGoogleAuth } from '../../hooks/useGoogle';
+import { useAuth } from '../../hooks/useAuth';
+import { useGoogleAuth } from '../../hooks/useGoogleAuth';
+import { waitForServer } from '../../services/auth';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -287,7 +287,7 @@ export default function LoginScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaProvider style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -330,7 +330,7 @@ export default function LoginScreen() {
       </KeyboardAvoidingView>
 
       {renderForgotPasswordModal()}
-    </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 

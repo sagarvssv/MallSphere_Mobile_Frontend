@@ -1,7 +1,7 @@
 // services/api.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_BASE_URL = 'https://mallsperebackend-psbx.onrender.com/api/auth';
+const API_BASE_URL = 'https://mallsperebackend-uh9h.onrender.com/api/auth';
 
 interface ApiResponse<T = any> {
   success: boolean;

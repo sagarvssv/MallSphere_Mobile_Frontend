@@ -7,12 +7,50 @@ export const StorageKeys = {
   IS_AUTHENTICATED: 'is_authenticated',
 };
 
-export const saveUserData = async (user: any) => {
+// Updated: Now accepts tokens as parameters
+export const saveUserData = async (user: any, accessToken?: string, refreshToken?: string) => {
   try {
     await AsyncStorage.setItem(StorageKeys.USER, JSON.stringify(user));
     await AsyncStorage.setItem(StorageKeys.IS_AUTHENTICATED, 'true');
+    
+    // Save tokens if provided
+    if (accessToken) {
+      await AsyncStorage.setItem(StorageKeys.ACCESS_TOKEN, accessToken);
+    }
+    if (refreshToken) {
+      await AsyncStorage.setItem(StorageKeys.REFRESH_TOKEN, refreshToken);
+    }
+    
+    console.log('✅ User data and tokens saved successfully');
   } catch (error) {
     console.error('Error saving user data:', error);
+  }
+};
+
+// Add a dedicated function to save tokens
+export const saveTokens = async (accessToken: string, refreshToken: string) => {
+  try {
+    await AsyncStorage.setItem(StorageKeys.ACCESS_TOKEN, accessToken);
+    await AsyncStorage.setItem(StorageKeys.REFRESH_TOKEN, refreshToken);
+    await AsyncStorage.setItem(StorageKeys.IS_AUTHENTICATED, 'true');
+    console.log('✅ Tokens saved successfully');
+  } catch (error) {
+    console.error('Error saving tokens:', error);
+  }
+};
+
+// Get tokens separately
+export const getTokens = async () => {
+  try {
+    const [accessToken, refreshToken] = await Promise.all([
+      AsyncStorage.getItem(StorageKeys.ACCESS_TOKEN),
+      AsyncStorage.getItem(StorageKeys.REFRESH_TOKEN),
+    ]);
+    
+    return { accessToken, refreshToken };
+  } catch (error) {
+    console.error('Error getting tokens:', error);
+    return { accessToken: null, refreshToken: null };
   }
 };
 
@@ -28,10 +66,13 @@ export const getUserData = async () => {
 
 export const clearUserData = async () => {
   try {
-    await AsyncStorage.removeItem(StorageKeys.USER);
-    await AsyncStorage.removeItem(StorageKeys.ACCESS_TOKEN);
-    await AsyncStorage.removeItem(StorageKeys.REFRESH_TOKEN);
-    await AsyncStorage.removeItem(StorageKeys.IS_AUTHENTICATED);
+    await AsyncStorage.multiRemove([
+      StorageKeys.USER,
+      StorageKeys.ACCESS_TOKEN,
+      StorageKeys.REFRESH_TOKEN,
+      StorageKeys.IS_AUTHENTICATED,
+    ]);
+    console.log('🗑️ All user data cleared');
   } catch (error) {
     console.error('Error clearing user data:', error);
   }
@@ -39,8 +80,15 @@ export const clearUserData = async () => {
 
 export const isAuthenticated = async () => {
   try {
-    const authStatus = await AsyncStorage.getItem(StorageKeys.IS_AUTHENTICATED);
-    return authStatus === 'true';
+    const [authStatus, accessToken] = await Promise.all([
+      AsyncStorage.getItem(StorageKeys.IS_AUTHENTICATED),
+      AsyncStorage.getItem(StorageKeys.ACCESS_TOKEN),
+    ]);
+    
+    // Check both auth status AND access token exists
+    const isValid = authStatus === 'true' && !!accessToken;
+    console.log('🔍 Auth check:', { authStatus, hasToken: !!accessToken, isValid });
+    return isValid;
   } catch (error) {
     console.error('Error checking auth status:', error);
     return false;

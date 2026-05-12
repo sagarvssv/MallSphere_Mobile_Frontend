@@ -1,20 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
+  Alert,
   KeyboardAvoidingView,
   Platform,
+  StyleSheet,
+  Text,
   TouchableOpacity,
-  Alert,
+  View,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useAuth } from '../../hooks/useAuth';
-import Input from '../../components/ui/Input';
-import Button from '../../components/ui/Button';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Header from '../../components/common/Header';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
 import { Colors } from '../../constants/colors';
+import { useAuth } from '../../hooks/useAuth';
 import { validateOTP } from '../../utils/validators';
 
 export default function VerifyOtpScreen() {
@@ -109,7 +109,7 @@ export default function VerifyOtpScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaProvider style={styles.container}>
       <Header showBack title="Verify Email" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -183,7 +183,7 @@ export default function VerifyOtpScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
